@@ -1,0 +1,59 @@
+replicaCount: 2
+
+image:
+  repository: elisetaa/cast-service
+  pullPolicy: Always
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+database:
+  host: cast-db-postgresql
+  port: 5432
+  name: cast_db
+  user: cast_db_user
+  # Password should be stored in Kubernetes secret
+  existingSecret: ""
+  existingSecretPasswordKey: password
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+
+environment: dev
+
+env:
+  - name: SERVICE_NAME
+    value: "cast-service"
+  - name: LOG_LEVEL
+    value: "info"

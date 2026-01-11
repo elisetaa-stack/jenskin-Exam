@@ -1,0 +1,340 @@
+---
+# Namespace Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    environment: development
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qa
+  labels:
+    environment: qa
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+  labels:
+    environment: staging
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    environment: production
+
+---
+# Cast Database Secret (will be created by Jenkins)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cast-db-secret
+type: Opaque
+stringData:
+  username: cast_db_username
+  password: cast_db_password
+  database: cast_db_dev
+
+---
+# Movie Database Secret (will be created by Jenkins)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: movie-db-secret
+type: Opaque
+stringData:
+  username: movie_db_username
+  password: movie_db_password
+  database: movie_db_dev
+
+---
+# Cast Database StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cast-db
+spec:
+  serviceName: cast-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cast-db
+  template:
+    metadata:
+      labels:
+        app: cast-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:12.1-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: cast-db-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cast-db-secret
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: cast-db-secret
+              key: database
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+# Cast Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: cast-db
+spec:
+  type: ClusterIP
+  selector:
+    app: cast-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+# Movie Database StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: movie-db
+spec:
+  serviceName: movie-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: movie-db
+  template:
+    metadata:
+      labels:
+        app: movie-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:12.1-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: movie-db-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: movie-db-secret
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: movie-db-secret
+              key: database
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+# Movie Database Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-db
+spec:
+  type: ClusterIP
+  selector:
+    app: movie-db
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+# Cast Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cast-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cast-service
+  template:
+    metadata:
+      labels:
+        app: cast-service
+    spec:
+      containers:
+      - name: cast-service
+        image: elisetaa/cast-service:latest
+        command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DATABASE_URI
+          value: postgresql://$(DB_USER):$(DB_PASSWORD)@cast-db:5432/$(DB_NAME)
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: cast-db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cast-db-secret
+              key: password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: cast-db-secret
+              key: database
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# Cast Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: cast-service
+spec:
+  type: ClusterIP
+  selector:
+    app: cast-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+
+---
+# Movie Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: movie-service
+  template:
+    metadata:
+      labels:
+        app: movie-service
+    spec:
+      containers:
+      - name: movie-service
+        image: elisetaa/movie-service:latest
+        command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DATABASE_URI
+          value: postgresql://$(DB_USER):$(DB_PASSWORD)@movie-db:5432/$(DB_NAME)
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: movie-db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: movie-db-secret
+              key: password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: movie-db-secret
+              key: database
+        - name: CAST_SERVICE_HOST_URL
+          value: http://cast-service:8000/api/v1/casts/
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# Movie Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-service
+spec:
+  type: ClusterIP
+  selector:
+    app: movie-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http

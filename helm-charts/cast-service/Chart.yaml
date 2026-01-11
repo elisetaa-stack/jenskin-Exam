@@ -1,0 +1,16 @@
+apiVersion: v2
+name: cast-service
+description: A Helm chart for Cast Service microservice
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - cast
+  - microservice
+  - python
+  - fastapi
+maintainers:
+  - name: DevOps Team
+    email: devops@company.com
+sources:
+  - https://github.com/elisetaa-stack/jenskin-Exam
