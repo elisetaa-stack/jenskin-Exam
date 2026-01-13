@@ -1,0 +1,22 @@
+[0;1;32m●[0m jenkins.service - Jenkins Continuous Integration Server
+     Loaded: loaded (]8;;file://ip-172-31-42-110/usr/lib/systemd/system/jenkins.service/usr/lib/systemd/system/jenkins.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+    Drop-In: /etc/systemd/system/jenkins.service.d
+             └─]8;;file://ip-172-31-42-110/etc/systemd/system/jenkins.service.d/override.confoverride.conf]8;;
+     Active: [0;1;32mactive (running)[0m since Tue 2026-01-13 14:21:27 UTC; 8min ago
+   Main PID: 699 (java)
+      Tasks: 45 (limit: 9178)
+     Memory: 739.5M (peak: 743.5M)
+        CPU: 49.008s
+     CGroup: /system.slice/jenkins.service
+             └─[0;38;5;245m699 /usr/bin/java -Djava.awt.headless=true -jar /usr/share/java/jenkins.war --webroot=/var/cache/jenkins/war --httpPort=8080[0m
+
+Jan 13 14:21:26 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:21:26.630+0000 [id=49]        INFO        hudson.util.Retrier#start: Attempt #1 to do the action check updates server
+Jan 13 14:21:27 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:21:27.109+0000 [id=30]        INFO        jenkins.InitReactorRunner$1#onAttained: Completed initialization
+Jan 13 14:21:27 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:21:27.466+0000 [id=23]        INFO        hudson.lifecycle.Lifecycle#onReady: Jenkins is fully up and running
+Jan 13 14:21:27 ip-172-31-42-110 systemd[1]: Started jenkins.service - Jenkins Continuous Integration Server.
+Jan 13 14:21:33 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:21:33.720+0000 [id=58]        WARNING        h.n.DiskSpaceMonitorDescriptor#markNodeOfflineOrOnline: Making Built-In Node offline temporarily due to the lack of disk space
+Jan 13 14:21:37 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:21:37.433+0000 [id=69]        WARNING        j.m.api.Metrics$HealthChecker#execute: Some health checks are reporting as unhealthy: [disk-space : Only 0.509 Gb free on (controller), temporary-space : Only 0.509 Gb free on (controller)]
+Jan 13 14:21:58 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:21:58.703+0000 [id=49]        INFO        h.m.DownloadService$Downloadable#load: Obtained the updated data file for hudson.tasks.Maven.MavenInstaller
+Jan 13 14:22:00 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:22:00.175+0000 [id=49]        INFO        h.m.DownloadService$Downloadable#load: Obtained the updated data file for hudson.tasks.Ant.AntInstaller
+Jan 13 14:22:02 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:22:02.790+0000 [id=49]        INFO        h.m.DownloadService$Downloadable#load: Obtained the updated data file for hudson.plugins.gradle.GradleInstaller
+Jan 13 14:22:02 ip-172-31-42-110 jenkins[699]: 2026-01-13 14:22:02.790+0000 [id=49]        INFO        hudson.util.Retrier#start: Performed the action check updates server successfully at the attempt #1
