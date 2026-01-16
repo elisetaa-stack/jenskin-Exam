@@ -3,10 +3,12 @@ pipeline {
     
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-        DOCKERHUB_USERNAME = 'elisetaa'
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        KUBECONFIG = credentials('kubeconfig')
-        GIT_REPO = 'https://github.com/elisetaa-stack/jenskin-Exam.git'
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_USERNAME = 'elisetaa'
+        DOCKERHUB_USERNAME = 'elisetaa'  // Added this
+        IMAGE_TAG = "${BUILD_NUMBER}"     // Added this
+        CAST_IMAGE = "${DOCKER_USERNAME}/cast-service"
+        MOVIE_IMAGE = "${DOCKER_USERNAME}/movie-service"
     }
     
     stages {
@@ -403,8 +405,8 @@ pipeline {
         }
         always {
             script {
-                echo "=== Cleaning Up Workspace ==="
-                cleanWs()
+                echo "=== Pipeline Execution Completed ==="
+                // Removed cleanWs() to avoid context error
             }
         }
     }
