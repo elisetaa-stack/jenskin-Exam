@@ -61,3 +61,8 @@ env:
     value: "movie-service"
   - name: LOG_LEVEL
     value: "info"
+
+
+serviceAccount:
+  create: true
+  name: ""  
