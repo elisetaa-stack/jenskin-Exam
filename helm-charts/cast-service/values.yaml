@@ -59,6 +59,7 @@ env:
     value: "info"
  
 serviceAccount:
-  create: true
+  create: false
   name: ""
+  annotations: {} 
 
