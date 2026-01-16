@@ -2,11 +2,10 @@ pipeline {
     agent any
     
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
         DOCKER_REGISTRY = 'docker.io'
         DOCKER_USERNAME = 'elisetaa'
-        DOCKERHUB_USERNAME = 'elisetaa'  // Added this
-        IMAGE_TAG = "${BUILD_NUMBER}"     // Added this
+        DOCKERHUB_USERNAME = 'elisetaa'
+        IMAGE_TAG = "${BUILD_NUMBER}"
         CAST_IMAGE = "${DOCKER_USERNAME}/cast-service"
         MOVIE_IMAGE = "${DOCKER_USERNAME}/movie-service"
     }
@@ -149,19 +148,26 @@ pipeline {
             steps {
                 script {
                     echo "=== Pushing Images to DockerHub ==="
-                    sh """
-                        echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin
-                        
-                        # Push Cast Service Images
-                        docker push ${DOCKERHUB_USERNAME}/cast-service:${IMAGE_TAG}
-                        docker push ${DOCKERHUB_USERNAME}/cast-service:${env.DEPLOY_ENV}-latest
-                        
-                        # Push Movie Service Images
-                        docker push ${DOCKERHUB_USERNAME}/movie-service:${IMAGE_TAG}
-                        docker push ${DOCKERHUB_USERNAME}/movie-service:${env.DEPLOY_ENV}-latest
-                        
-                        docker logout
-                    """
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh """
+                            echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                            
+                            # Push Cast Service Images
+                            docker push ${DOCKERHUB_USERNAME}/cast-service:${IMAGE_TAG}
+                            docker push ${DOCKERHUB_USERNAME}/cast-service:${env.DEPLOY_ENV}-latest
+                            
+                            # Push Movie Service Images
+                            docker push ${DOCKERHUB_USERNAME}/movie-service:${IMAGE_TAG}
+                            docker push ${DOCKERHUB_USERNAME}/movie-service:${env.DEPLOY_ENV}-latest
+                            
+                            docker logout
+                        """
+                    }
                     
                     echo "✓ Images pushed successfully:"
                     echo "  - ${DOCKERHUB_USERNAME}/cast-service:${IMAGE_TAG}"
@@ -213,7 +219,7 @@ pipeline {
                             --set database.name=cast_db_${env.DB_SUFFIX} \
                             --wait --timeout 5m
                         
-                        # Deploy Movie Service (depends on Cast Service)
+                        # Deploy Movie Service
                         helm upgrade --install movie-service ./helm-charts/movie-service \
                             --namespace ${env.NAMESPACE} \
                             --set image.repository=${DOCKERHUB_USERNAME}/movie-service \
@@ -243,7 +249,6 @@ pipeline {
                 script {
                     echo "=== Production Deployment Approval Required ==="
                     
-                    // Manual approval gate for production
                     timeout(time: 30, unit: 'MINUTES') {
                         input message: 'Deploy to Production Environment?', 
                               ok: 'Deploy to Production',
@@ -260,7 +265,6 @@ pipeline {
                     sh """
                         kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
                         
-                        # Create production database secrets
                         kubectl create secret generic cast-db-secret \
                             --from-literal=username=cast_db_username \
                             --from-literal=password=cast_db_password \
@@ -275,7 +279,6 @@ pipeline {
                             --namespace prod \
                             --dry-run=client -o yaml | kubectl apply -f -
                         
-                        # Deploy Cast Service to Production
                         helm upgrade --install cast-service ./helm-charts/cast-service \
                             --namespace prod \
                             --set image.repository=${DOCKERHUB_USERNAME}/cast-service \
@@ -287,7 +290,6 @@ pipeline {
                             --set resources.requests.memory=512Mi \
                             --wait --timeout 10m
                         
-                        # Deploy Movie Service to Production
                         helm upgrade --install movie-service ./helm-charts/movie-service \
                             --namespace prod \
                             --set image.repository=${DOCKERHUB_USERNAME}/movie-service \
@@ -300,7 +302,6 @@ pipeline {
                             --set resources.requests.memory=512Mi \
                             --wait --timeout 10m
                         
-                        # Deploy Nginx Gateway
                         kubectl apply -f kubernetes-manifests/nginx-gateway.yaml -n prod
                     """
                     
@@ -315,10 +316,8 @@ pipeline {
                     echo "=== Running Smoke Tests ==="
                     
                     sh """
-                        # Wait for services to be ready
                         sleep 10
                         
-                        # Test Cast Service
                         echo "Testing Cast Service..."
                         kubectl port-forward -n ${env.NAMESPACE} svc/cast-service 8002:8000 &
                         CAST_PF_PID=\$!
@@ -334,7 +333,6 @@ pipeline {
                         kill \$CAST_PF_PID || true
                         sleep 2
                         
-                        # Test Movie Service
                         echo "Testing Movie Service..."
                         kubectl port-forward -n ${env.NAMESPACE} svc/movie-service 8001:8000 &
                         MOVIE_PF_PID=\$!
@@ -360,9 +358,7 @@ pipeline {
                 script {
                     echo "=== Cleaning Up ==="
                     sh """
-                        # Remove old Docker images
                         docker system prune -f || true
-                        
                         echo "✓ Cleanup completed"
                     """
                 }
@@ -406,7 +402,6 @@ pipeline {
         always {
             script {
                 echo "=== Pipeline Execution Completed ==="
-                // Removed cleanWs() to avoid context error
             }
         }
     }
